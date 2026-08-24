@@ -1,19 +1,4 @@
-This folder holds a legacy php application that is used to display a url list for a team of users. 
-
-The files included here are:
-
-index.php - The public URL list (browsing, click tracking, category tabs/search)
-
-admin.php - The admin panel (login, add/delete URLs, approve/reject submitted URLs). Session-gated; visiting it while logged out shows a login form.
-
-style.css - The stylesheet
-
-global.php - PHP Functions and Global Settings. 
-
-url_list.sql - DB structure, plus seed data (a few sample categories/URLs and a default admin user)
-
-Dockerfile / docker-compose.yml - Containerized dev/deploy setup (PHP+Apache app container, MySQL container)
-
+This application is used to store a list of urls for a team of users. 
 
 ## Running with Docker
 
