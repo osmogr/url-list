@@ -1,0 +1,34 @@
+services:
+  web:
+    build: .
+    ports:
+      - "8081:80"
+    environment:
+      DB_HOST: db
+      DB_NAME: url_list
+      DB_USER: url_list
+      DB_PASSWORD: url_list_password
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: url_list
+      MYSQL_USER: url_list
+      MYSQL_PASSWORD: url_list_password
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./url_list.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot_password"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  db_data:
