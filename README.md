@@ -6,8 +6,6 @@ index.php - The public URL list (browsing, click tracking, category tabs/search)
 
 admin.php - The admin panel (login, add/delete URLs, approve/reject submitted URLs). Session-gated; visiting it while logged out shows a login form.
 
-index_new_ui.php - The original standalone UI mockup this design was merged in from. Kept for reference; not served by the app.
-
 style.css - The stylesheet
 
 global.php - PHP Functions and Global Settings. 
