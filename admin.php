@@ -73,18 +73,33 @@ if ($is_admin && $_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!$can_manage_content) {
             $action_message = 'You do not have permission to do that.';
         } else {
-            $url_id = $_POST['url_id'];
+            $url_id = $_POST['delete'];
             deleteUrl($conn, $url_id);
             $action_message = 'URL deleted.';
         }
-    } elseif (isset($_POST['update_category'])) {
+    } elseif (isset($_POST['update_url'])) {
         if (!$can_manage_content) {
             $action_message = 'You do not have permission to do that.';
         } else {
-            $url_id = $_POST['url_id'];
-            $category_id = $_POST['category_id'];
-            updateUrlCategory($conn, $url_id, $category_id);
-            $action_message = 'Category updated.';
+            $url_id = $_POST['update_url'];
+            $description = $_POST['description'][$url_id] ?? '';
+            $category_id = $_POST['category_id'][$url_id] ?? null;
+            updateUrl($conn, $url_id, $description, $category_id);
+            $action_message = 'URL updated.';
+        }
+    } elseif (isset($_POST['update_all'])) {
+        if (!$can_manage_content) {
+            $action_message = 'You do not have permission to do that.';
+        } else {
+            $descriptions = $_POST['description'] ?? [];
+            $category_ids = $_POST['category_id'] ?? [];
+            $updated = 0;
+            foreach ($descriptions as $url_id => $description) {
+                $category_id = $category_ids[$url_id] ?? null;
+                updateUrl($conn, $url_id, $description, $category_id);
+                $updated++;
+            }
+            $action_message = $updated . ' URL' . ($updated === 1 ? '' : 's') . ' updated.';
         }
     } elseif (isset($_POST['approve'])) {
         if (!$can_approve) {
@@ -127,6 +142,20 @@ if ($is_admin && $_SERVER['REQUEST_METHOD'] === 'POST') {
             } else {
                 $action_message = 'Cannot delete category: it still has URLs or pending submissions assigned to it.';
             }
+        }
+    } elseif (isset($_POST['move_category_up'])) {
+        if (!$can_manage_content) {
+            $action_message = 'You do not have permission to do that.';
+        } else {
+            moveCategory($conn, $_POST['category_id'], 'up');
+            $action_message = 'Category order updated.';
+        }
+    } elseif (isset($_POST['move_category_down'])) {
+        if (!$can_manage_content) {
+            $action_message = 'You do not have permission to do that.';
+        } else {
+            moveCategory($conn, $_POST['category_id'], 'down');
+            $action_message = 'Category order updated.';
         }
     } elseif (isset($_POST['add_admin'])) {
         if (!$can_manage_admins) {
@@ -358,6 +387,13 @@ $self = htmlspecialchars($_SERVER['PHP_SELF']);
                 <?php if (empty($urls)): ?>
                     <p class="empty-state">No URLs yet.</p>
                 <?php else: ?>
+                    <?php if ($can_manage_content): ?>
+                    <form id="bulk-urls-form" method="post" action="<?php echo $self; ?>">
+                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                    <div class="bulk-actions">
+                        <button type="submit" name="update_all" id="update-all-btn" class="btn btn-primary" style="display: none;">Update All (<span id="update-all-count">0</span>)</button>
+                    </div>
+                    <?php endif; ?>
                     <div class="table-responsive">
                         <table>
                             <thead>
@@ -372,21 +408,23 @@ $self = htmlspecialchars($_SERVER['PHP_SELF']);
                             <tbody>
                                 <?php foreach ($urls as $category => $urls_in_category): ?>
                                     <?php foreach ($urls_in_category as $url_data): ?>
-                                    <tr>
-                                        <td class="clicks-badge"><?php echo $url_data['click_count']; ?></td>
-                                        <td class="desc-text"><?php echo htmlspecialchars($url_data['description']); ?></td>
+                                    <tr data-url-row="<?php echo $url_data['id']; ?>">
+                                        <td class="clicks-badge"><span><?php echo $url_data['click_count']; ?></span></td>
+                                        <td class="desc-text">
+                                            <?php if ($can_manage_content): ?>
+                                            <input type="text" name="description[<?php echo $url_data['id']; ?>]" value="<?php echo htmlspecialchars($url_data['description']); ?>" data-original="<?php echo htmlspecialchars($url_data['description'], ENT_QUOTES); ?>" data-url-id="<?php echo $url_data['id']; ?>" class="desc-edit-input dirty-tracked">
+                                            <?php else: ?>
+                                                <?php echo htmlspecialchars($url_data['description']); ?>
+                                            <?php endif; ?>
+                                        </td>
                                         <td><a href="<?php echo htmlspecialchars($url_data['url']); ?>" target="_blank"><?php echo htmlspecialchars($url_data['url']); ?></a></td>
                                         <td>
                                             <?php if ($can_manage_content): ?>
-                                            <select name="category_id" form="category-form-<?php echo $url_data['id']; ?>">
+                                            <select name="category_id[<?php echo $url_data['id']; ?>]" data-original="<?php echo $url_data['category_id']; ?>" data-url-id="<?php echo $url_data['id']; ?>" class="dirty-tracked">
                                                 <?php foreach ($categories as $cat): ?>
                                                     <option value="<?php echo $cat['id']; ?>"<?php echo $cat['id'] == $url_data['category_id'] ? ' selected' : ''; ?>><?php echo htmlspecialchars($cat['name']); ?></option>
                                                 <?php endforeach; ?>
                                             </select>
-                                            <form id="category-form-<?php echo $url_data['id']; ?>" method="post" action="<?php echo $self; ?>">
-                                                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
-                                                <input type="hidden" name="url_id" value="<?php echo $url_data['id']; ?>">
-                                            </form>
                                             <?php else: ?>
                                                 <?php echo htmlspecialchars($category); ?>
                                             <?php endif; ?>
@@ -394,12 +432,8 @@ $self = htmlspecialchars($_SERVER['PHP_SELF']);
                                         <td>
                                             <?php if ($can_manage_content): ?>
                                             <div class="inline-form">
-                                                <button type="submit" name="update_category" form="category-form-<?php echo $url_data['id']; ?>" class="btn btn-secondary">Update</button>
-                                                <form method="post" action="<?php echo $self; ?>" class="inline-form" onsubmit="return confirm('Delete this URL?');">
-                                                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
-                                                    <input type="hidden" name="url_id" value="<?php echo $url_data['id']; ?>">
-                                                    <button type="submit" name="delete" class="btn btn-reject">Delete</button>
-                                                </form>
+                                                <button type="submit" name="update_url" value="<?php echo $url_data['id']; ?>" class="btn btn-secondary">Update</button>
+                                                <button type="submit" name="delete" value="<?php echo $url_data['id']; ?>" class="btn btn-reject" onclick="return confirm('Delete this URL?');">Delete</button>
                                             </div>
                                             <?php endif; ?>
                                         </td>
@@ -409,6 +443,9 @@ $self = htmlspecialchars($_SERVER['PHP_SELF']);
                             </tbody>
                         </table>
                     </div>
+                    <?php if ($can_manage_content): ?>
+                    </form>
+                    <?php endif; ?>
                 <?php endif; ?>
             </div>
 
@@ -423,11 +460,13 @@ $self = htmlspecialchars($_SERVER['PHP_SELF']);
                 <?php if (empty($categories)): ?>
                     <p class="empty-state">No categories yet.</p>
                 <?php else: ?>
+                    <?php $reorderable_categories = array_values(array_filter($categories, function ($c) { return $c['name'] !== 'General'; })); ?>
                     <div class="table-responsive">
                         <table>
                             <thead>
                                 <tr>
                                     <th>Name</th>
+                                    <th>Order</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
@@ -435,6 +474,19 @@ $self = htmlspecialchars($_SERVER['PHP_SELF']);
                                 <?php foreach ($categories as $category): ?>
                                 <tr>
                                     <td><?php echo htmlspecialchars($category['name']); ?></td>
+                                    <td>
+                                        <?php if ($category['name'] === 'General'): ?>
+                                            <span class="empty-state">Always first</span>
+                                        <?php else: ?>
+                                            <?php $pos = array_search($category['id'], array_column($reorderable_categories, 'id')); ?>
+                                            <form method="post" action="<?php echo $self; ?>" class="inline-form">
+                                                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                                                <input type="hidden" name="category_id" value="<?php echo $category['id']; ?>">
+                                                <button type="submit" name="move_category_up" class="btn btn-secondary"<?php echo $pos === 0 ? ' disabled' : ''; ?>>&uarr;</button>
+                                                <button type="submit" name="move_category_down" class="btn btn-secondary"<?php echo $pos === count($reorderable_categories) - 1 ? ' disabled' : ''; ?>>&darr;</button>
+                                            </form>
+                                        <?php endif; ?>
+                                    </td>
                                     <td>
                                         <form method="post" action="<?php echo $self; ?>" class="inline-form" onsubmit="return confirm('Delete this category?');">
                                             <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
@@ -536,6 +588,57 @@ $self = htmlspecialchars($_SERVER['PHP_SELF']);
         <?php endif; ?>
 
     </main>
+
+    <script>
+        (function () {
+            var form = document.getElementById('bulk-urls-form');
+            if (!form) return;
+
+            var updateAllBtn = document.getElementById('update-all-btn');
+            var countSpan = document.getElementById('update-all-count');
+            var dirtyRows = new Set();
+
+            function refreshUpdateAllVisibility() {
+                if (dirtyRows.size >= 2) {
+                    countSpan.textContent = dirtyRows.size;
+                    updateAllBtn.style.display = '';
+                } else {
+                    updateAllBtn.style.display = 'none';
+                }
+            }
+
+            form.querySelectorAll('.dirty-tracked').forEach(function (field) {
+                var rowId = field.getAttribute('data-url-id');
+                var original = field.getAttribute('data-original');
+
+                field.addEventListener('input', function () {
+                    checkField(field, rowId, original);
+                });
+                field.addEventListener('change', function () {
+                    checkField(field, rowId, original);
+                });
+            });
+
+            function checkField(field, rowId, original) {
+                var row = form.querySelector('tr[data-url-row="' + rowId + '"]');
+                var rowIsDirty = false;
+                if (row) {
+                    row.querySelectorAll('.dirty-tracked').forEach(function (f) {
+                        if (f.value !== f.getAttribute('data-original')) {
+                            rowIsDirty = true;
+                        }
+                    });
+                }
+
+                if (rowIsDirty) {
+                    dirtyRows.add(rowId);
+                } else {
+                    dirtyRows.delete(rowId);
+                }
+                refreshUpdateAllVisibility();
+            }
+        })();
+    </script>
 
 </body>
 </html>

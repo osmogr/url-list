@@ -52,15 +52,17 @@ try {
     http_response_code(500);
     die('A database error occurred. Please try again later.'); }
 
-// Function to fetch categories
+// Function to fetch categories. "General" is always pinned first; the rest
+// follow the admin-defined manual sort_order.
 function getCategories($conn) {
-    $stmt = $conn->query("SELECT * FROM categories");
+    $stmt = $conn->query("SELECT * FROM categories ORDER BY (name = 'General') DESC, sort_order ASC, name ASC");
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
-// Function to fetch URLs sorted by click count
+// Function to fetch URLs, grouped by category in the same manual order as
+// getCategories(), with each category's URLs sorted by click count.
 function getUrls($conn) {
-    $sql = "SELECT categories.name as category, urls.id, urls.url, urls.click_count, description, urls.category_id FROM urls JOIN categories ON urls.category_id = categories.id ORDER BY urls.click_count DESC, categories.name";
+    $sql = "SELECT categories.name as category, urls.id, urls.url, urls.click_count, description, urls.category_id FROM urls JOIN categories ON urls.category_id = categories.id ORDER BY (categories.name = 'General') DESC, categories.sort_order ASC, categories.name ASC, urls.click_count DESC";
     $stmt = $conn->query($sql);
     $urls = [];
     while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
@@ -251,8 +253,9 @@ function addUrl($conn, $url, $description, $category_id) {
     return $stmt->execute();
 }
 
-function updateUrlCategory($conn, $url_id, $category_id) {
-    $stmt = $conn->prepare("UPDATE urls SET category_id = :category_id WHERE id = :id");
+function updateUrl($conn, $url_id, $description, $category_id) {
+    $stmt = $conn->prepare("UPDATE urls SET description = :description, category_id = :category_id WHERE id = :id");
+    $stmt->bindParam(':description', $description);
     $stmt->bindParam(':category_id', $category_id);
     $stmt->bindParam(':id', $url_id);
     return $stmt->execute();
@@ -270,11 +273,47 @@ function getSubmittedUrls($conn) {
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
-// Function to add a new category
+// Function to add a new category. New categories are appended to the end of
+// the manual sort order.
 function addCategory($conn, $name) {
-    $stmt = $conn->prepare("INSERT INTO categories (name) VALUES (:name)");
+    $next_order = $conn->query("SELECT COALESCE(MAX(sort_order), -1) + 1 FROM categories")->fetchColumn();
+
+    $stmt = $conn->prepare("INSERT INTO categories (name, sort_order) VALUES (:name, :sort_order)");
     $stmt->bindParam(':name', $name);
+    $stmt->bindParam(':sort_order', $next_order, PDO::PARAM_INT);
     return $stmt->execute();
+}
+
+// Move a category up or down one position in the manual sort order. The
+// "General" category is always forced first (see getCategories()) so it's
+// excluded here; reordering only applies to the rest.
+function moveCategory($conn, $category_id, $direction) {
+    $stmt = $conn->query("SELECT id, sort_order FROM categories WHERE name != 'General' ORDER BY sort_order ASC, name ASC");
+    $ordered = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $index = null;
+    foreach ($ordered as $i => $cat) {
+        if ($cat['id'] == $category_id) {
+            $index = $i;
+            break;
+        }
+    }
+    if ($index === null) {
+        return false;
+    }
+
+    $swap_index = $direction === 'up' ? $index - 1 : $index + 1;
+    if ($swap_index < 0 || $swap_index >= count($ordered)) {
+        return false;
+    }
+
+    $current = $ordered[$index];
+    $swap_with = $ordered[$swap_index];
+
+    $stmt = $conn->prepare("UPDATE categories SET sort_order = :sort_order WHERE id = :id");
+    $stmt->execute([':sort_order' => $swap_with['sort_order'], ':id' => $current['id']]);
+    $stmt->execute([':sort_order' => $current['sort_order'], ':id' => $swap_with['id']]);
+    return true;
 }
 
 // Function to delete a category. Returns false if the category is still in use.

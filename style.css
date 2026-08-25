@@ -175,24 +175,18 @@ td {
         .col-desc { width: 55%; }
         .col-url { width: 35%; }
 
-/* 1. target the first column cell directly to use Flexbox layout */
-table tbody tr td:first-child {
-    display: flex;
-    align-items: center;     /* Dead center vertically */
-    justify-content: center;  /* Dead center horizontally */
-    height: 100%;            /* Fills the cell space */
-    min-height: 44px;        /* Ensures a consistent row height baseline */
-    border-bottom: none;     /* Prevents double borders inside the flex container */
-}
-
-/* 2. Re-adjust the badge to sit cleanly as an inline-block item inside the flex cell */
+/* Clicks column: centered both ways, but stays a normal table cell so it
+   lines up on the same vertical baseline as the description/url cells. */
 .clicks-badge {
     text-align: center;
+}
+
+.clicks-badge span {
     font-weight: 700;
     color: var(--badge-text);
     background-color: var(--badge-bg);
     border-radius: 4px;
-    padding: 4px 8px; /* Cleaned up !important */
+    padding: 4px 8px;
     display: inline-block;
     font-size: 0.85rem;
     min-width: 50px; /* Gives the numbers a consistent pill width */
@@ -203,6 +197,17 @@ table tbody tr td:first-child {
     font-weight: 500;
     color: var(--text-primary);
     line-height: 1.2; /* Ensures it shares the same vertical footprint */
+}
+
+.desc-edit-input {
+    width: 100%;
+    box-sizing: border-box;
+    font: inherit;
+    font-weight: 500;
+    color: var(--text-primary);
+    padding: 6px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
 }
 
         /* Clean URL Column Configuration (Fits 1 Line with Ellipsis) */
@@ -355,6 +360,12 @@ td a {
             flex-wrap: wrap;
             gap: 8px;
             align-items: center;
+        }
+
+        .bulk-actions {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 12px;
         }
 
         .btn {

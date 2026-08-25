@@ -28,7 +28,8 @@ SET time_zone = "+00:00";
 
 CREATE TABLE IF NOT EXISTS `categories` (
   `id` int(11) NOT NULL,
-  `name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL
+  `name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `sort_order` int(11) NOT NULL DEFAULT '0'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
@@ -151,10 +152,10 @@ ALTER TABLE `urls`
 --
 -- Seed data for table `categories`
 --
-INSERT INTO `categories` (`id`, `name`) VALUES
-(1, 'General'),
-(2, 'Documentation'),
-(3, 'Monitoring');
+INSERT INTO `categories` (`id`, `name`, `sort_order`) VALUES
+(1, 'General', 0),
+(2, 'Documentation', 1),
+(3, 'Monitoring', 2);
 
 --
 -- Seed data for table `urls`
