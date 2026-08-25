@@ -71,6 +71,17 @@ function getUrls($conn) {
     return $urls;
 }
 
+// Fetch current click counts for all live URLs, keyed by id. Used by the
+// bubble diagram to poll for size changes without a full page reload.
+function getUrlClickCounts($conn) {
+    $stmt = $conn->query("SELECT id, click_count FROM urls");
+    $counts = [];
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        $counts[$row['id']] = (int) $row['click_count'];
+    }
+    return $counts;
+}
+
 // Function to handle URL click
 function handleUrlClick($conn, $url_id) {
     $stmt = $conn->prepare("UPDATE urls SET click_count = click_count + 1 WHERE id = :id");

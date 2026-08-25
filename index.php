@@ -59,8 +59,9 @@ foreach ($urls as $category => $urls_in_category) {
     <?php endif; ?>
 
     <div class="dashboard-container" style="margin-bottom: 24px;">
-        <div class="card admin-section">
+        <div class="card admin-section" style="display: flex; gap: 10px; flex-wrap: wrap;">
             <a href="submit.php" class="btn btn-primary">Submit a URL</a>
+            <a href="bubbles.php" class="btn btn-secondary">Bubble Diagram</a>
         </div>
     </div>
 
