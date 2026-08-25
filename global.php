@@ -92,6 +92,15 @@ function isValidSubmissionUrl($url) {
     return $scheme === 'http' || $scheme === 'https';
 }
 
+// Check whether a URL already exists among live or pending submissions
+function urlExists($conn, $url) {
+    $stmt = $conn->prepare("SELECT 1 FROM urls WHERE url = :url UNION ALL SELECT 1 FROM submitted_urls WHERE url = :url2 LIMIT 1");
+    $stmt->bindParam(':url', $url);
+    $stmt->bindParam(':url2', $url);
+    $stmt->execute();
+    return $stmt->fetchColumn() !== false;
+}
+
 // Function to handle URL submission
 function submitUrl($conn, $url, $description, $category_id) {
     $stmt = $conn->prepare("INSERT INTO submitted_urls (url, description, category_id) VALUES (:url, :description, :category_id)");

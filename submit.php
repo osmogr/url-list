@@ -15,6 +15,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_url'])) {
 
     if (!isValidSubmissionUrl($url)) {
         $submit_error = 'Please enter a valid http:// or https:// URL.';
+    } elseif (urlExists($conn, $url)) {
+        $submit_error = 'This URL has already been submitted.';
     } else {
         submitUrl($conn, $url, $description, $category_id);
         $submit_message = 'Thanks! Your URL was submitted and is awaiting review.';
