@@ -14,7 +14,9 @@ global.php - PHP Functions and Global Settings.
 
 url_list.sql - DB structure, plus seed data (a few sample categories/URLs and a default admin user)
 
-Dockerfile / docker-compose.yml - Containerized dev/deploy setup (PHP+Apache app container, MySQL container)
+migrate.php - Idempotent schema migration runner; brings an existing database up to the latest schema (see "Schema migrations" below)
+
+Dockerfile / docker-compose.yml / entrypoint.sh - Containerized dev/deploy setup (PHP+Apache app container, MySQL container); the entrypoint runs `migrate.php` before Apache starts
 
 
 ## Running with Docker
@@ -25,8 +27,10 @@ This starts the app at http://localhost:8081 (and https://localhost:8443 — the
 
 Default admin login (seeded by `url_list.sql`): username `admin`, password `admin123`. **Change or remove this before using the seed data anywhere but local dev.**
 
-### Schema updates
+### Schema migrations
 
-`submitted_urls` gained a `description` column so public submissions can include one. On a fresh `db_data` volume this is picked up automatically from `url_list.sql`. On an existing volume, run this migration instead:
+`migrate.php` brings a database up to the latest schema — it creates any missing tables/columns and is safe to run any number of times against an empty database, a database from an older version of this app, or one that's already current; unaffected schema is left untouched either way. The container's `entrypoint.sh` runs it automatically before Apache starts on every `docker compose up`, so upgrading an existing deployment (pulling a new image on top of an existing `db_data` volume) needs no manual steps.
 
-    ALTER TABLE submitted_urls ADD COLUMN description TEXT AFTER url;
+Running outside Docker: run `php migrate.php` (same `DB_HOST`/`DB_NAME`/`DB_USER`/`DB_PASSWORD` environment variables as the app) after pulling changes and before serving traffic, e.g. as part of your deploy script.
+
+To add a schema change going forward, append a new entry to the `$migrations` array in `migrate.php` rather than editing `url_list.sql` in place or documenting a manual `ALTER TABLE` here.

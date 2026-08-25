@@ -34,5 +34,8 @@ RUN { \
 COPY . /var/www/html/
 
 RUN chown -R www-data:www-data /var/www/html
+RUN chmod +x /var/www/html/entrypoint.sh
 
 EXPOSE 80 443
+
+ENTRYPOINT ["/var/www/html/entrypoint.sh"]
