@@ -3,6 +3,7 @@ services:
     build: .
     ports:
       - "8081:80"
+      - "8443:443"
     environment:
       DB_HOST: db
       DB_NAME: url_list
