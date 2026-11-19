@@ -248,6 +248,12 @@ if ($is_admin) {
     }
 }
 
+// Login/logout handling above may have destroyed or regenerated the session
+// (e.g. a failed login, or an admin's access being revoked mid-session), which
+// orphans the token grabbed earlier. Re-fetch it so the form we're about to
+// render always matches the session that will receive the next request.
+$csrf_token = generateCsrfToken();
+
 $self = htmlspecialchars($_SERVER['PHP_SELF']);
 ?>
 <!DOCTYPE html>

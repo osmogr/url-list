@@ -352,5 +352,12 @@ function deleteCategory($conn, $category_id) {
 function logoutUser() {
     $_SESSION = [];
     session_destroy();
+    // session_destroy() ends the session outright (session_status() drops to
+    // PHP_SESSION_NONE), so anything written to $_SESSION afterwards -
+    // including the CSRF token the caller renders into the next response -
+    // would silently vanish at request end instead of being persisted.
+    // Starting a fresh session here keeps $_SESSION usable for the rest of
+    // the request.
+    startSecureSession();
 }
 ?>
